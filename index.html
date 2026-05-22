@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sliding Puzzle - Auto Shuffle</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            width: 500px;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 25px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #board {
+            width: 420px;
+            height: 420px;
+            margin: 0 auto;
+            position: relative;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.3);
+        }
+
+        .tile {
+            position: absolute;
+            width: 140px;
+            height: 140px;
+            background-repeat: no-repeat;
+            border-radius: 8px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2), 2px 2px 5px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: top 0.15s ease-in-out, left 0.15s ease-in-out; /* Tăng tốc độ trượt một chút */
+        }
+
+        .tile:hover {
+            filter: brightness(1.1);
+        }
+
+        #message {
+            margin-top: 20px;
+            height: 24px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #ffd700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <h2>Game Trượt Hình</h2>
+        
+        <div class="controls">
+            <button class="btn" id="restartBtn">🎲 Chơi Lại</button>
+        </div>
+
+        <div id="board"></div>
+        <p id="message"></p>
+    </div>
+
+    <script>
+        const board = document.getElementById('board');
+        const restartBtn = document.getElementById('restartBtn');
+        const message = document.getElementById('message');
+
+        const SIZE = 420;
+        const GRID = 3;
+        const TILE_SIZE = SIZE / GRID;
+        
+        // Cố định một ảnh mặc định (bạn có thể thay link này bằng link ảnh thật của bạn)
+        const imageUrl = 'anh.jpg'; 
+        
+        let tiles = [];
+        let emptyPos = 8;
+        let isPlaying = false;
+        let isShuffling = false;
+
+        // Tự động chạy ngay khi tải xong trang web
+        window.onload = () => {
+            initGame();
+            // Đợi 0.5s để người chơi kịp nhìn thấy ảnh gốc, sau đó tự động trộn
+            setTimeout(shuffleBoard, 500); 
+        };
+
+        // Chơi lại từ đầu
+        restartBtn.addEventListener('click', () => {
+            if (isShuffling) return; // Không cho bấm khi đang trộn dở
+            initGame();
+            setTimeout(shuffleBoard, 300);
+        });
+
+        function initGame() {
+            board.innerHTML = '';
+            tiles = [];
+            isPlaying = false;
+            emptyPos = 8;
+
+            for (let i = 0; i < 8; i++) {
+                const tile = document.createElement('div');
+                tile.classList.add('tile');
+                tile.style.backgroundImage = `url(${imageUrl})`;
+                tile.style.backgroundSize = `${SIZE}px ${SIZE}px`;
+                
+                const bgX = (i % GRID) * TILE_SIZE;
+                const bgY = Math.floor(i / GRID) * TILE_SIZE;
+                tile.style.backgroundPosition = `-${bgX}px -${bgY}px`;
+
+                const tileObj = {
+                    element: tile,
+                    correctPos: i,
+                    currentPos: i
+                };
+
+                tile.addEventListener('click', () => {
+                    if (isPlaying && !isShuffling) {
+                        moveTile(tileObj);
+                    }
+                });
+                
+                tiles.push(tileObj);
+                board.appendChild(tile);
+            }
+            renderBoard();
+            message.innerText = "";
+        }
+
+        function renderBoard() {
+            tiles.forEach(tile => {
+                const x = (tile.currentPos % GRID) * TILE_SIZE;
+                const y = Math.floor(tile.currentPos / GRID) * TILE_SIZE;
+                tile.element.style.left = `${x}px`;
+                tile.element.style.top = `${y}px`;
+            });
+        }
+
+        function moveTile(tileObj, duringShuffle = false) {
+            const currentPos = tileObj.currentPos;
+            
+            const tileX = currentPos % GRID;
+            const tileY = Math.floor(currentPos / GRID);
+            const emptyX = emptyPos % GRID;
+            const emptyY = Math.floor(emptyPos / GRID);
+
+            const isAdjacent = Math.abs(tileX - emptyX) + Math.abs(tileY - emptyY) === 1;
+
+            if (isAdjacent) {
+                tileObj.currentPos = emptyPos;
+                emptyPos = currentPos;
+                renderBoard();
+
+                if (isPlaying && !duringShuffle) {
+                    checkWin();
+                }
+            }
+        }
+
+        function shuffleBoard() {
+            isShuffling = true;
+            isPlaying = false;
+            restartBtn.disabled = true;
+            message.innerText = "Đang xáo trộn...";
+            
+            let moves = 0;
+            let lastMovedPos = -1; // Tránh việc trượt qua trượt lại 1 ô liên tục
+            
+            const shuffleInterval = setInterval(() => {
+                const movableTiles = tiles.filter(tile => {
+                    const tx = tile.currentPos % GRID;
+                    const ty = Math.floor(tile.currentPos / GRID);
+                    const ex = emptyPos % GRID;
+                    const ey = Math.floor(emptyPos / GRID);
+                    return Math.abs(tx - ex) + Math.abs(ty - ey) === 1 && tile.currentPos !== lastMovedPos;
+                });
+
+                // Nếu không có ô nào (hiếm khi xảy ra), lấy lại tất cả các ô hợp lệ
+                const validTiles = movableTiles.length > 0 ? movableTiles : tiles.filter(tile => {
+                    const tx = tile.currentPos % GRID;
+                    const ty = Math.floor(tile.currentPos / GRID);
+                    const ex = emptyPos % GRID;
+                    const ey = Math.floor(emptyPos / GRID);
+                    return Math.abs(tx - ex) + Math.abs(ty - ey) === 1;
+                });
+
+                const randomTile = validTiles[Math.floor(Math.random() * validTiles.length)];
+                lastMovedPos = emptyPos; // Lưu lại vị trí ô trống trước khi trượt
+                
+                moveTile(randomTile, true);
+                
+                moves++;
+                if (moves >= 120) { // Trượt 120 lần để xáo
+                    clearInterval(shuffleInterval);
+                    isShuffling = false;
+                    isPlaying = true;
+                    restartBtn.disabled = false;
+                    message.innerText = "";
+                }
+            }, 15); // Tốc độ trượt khi trộn (15ms)
+        }
+
+        function checkWin() {
+            const isWin = tiles.every(tile => tile.currentPos === tile.correctPos);
+            if (isWin) {
+                setTimeout(() => {
+                    message.innerText = "Tuyệt vời! Bạn đã hoàn thành! 🏆";
+                    isPlaying = false;
+                }, 200);
+            }
+	// Kiểm tra chiến thắng và hiện lời nhắn đòi tiền
+function checkWin() {
+    const isWin = tiles.every(tile => tile.currentPos === tile.correctPos);
+    if (isWin) {
+        setTimeout(() => {
+            // Dùng innerHTML để có thể thêm thẻ <br> xuống dòng nếu muốn
+            message.innerHTML = "Bạn chơi giỏi quá cho mình xin 20k nhé 💸😆";
+            
+            // Đổi màu chữ sang xanh lá (màu của tiền) cho sinh động
+            message.style.color = "#2ed573"; 
+            message.style.fontSize = "20px";
+            
+            isPlaying = false;
+        }, 200);
+    }
+}
+        }
+    </script>
+</body>
+</html>
